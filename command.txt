@@ -1,0 +1,95 @@
+FOLDER: project4\project 4 code
+
+CREATE: bucket-policy.json
+
+aws s3api create-bucket `
+    --bucket coupons `
+    --acl private `
+    --endpoint-url=http://localhost:4567 `
+    --region us-east-1
+
+aws s3api put-bucket-policy `
+    --bucket coupons `
+    --policy file://bucket-policy.json `
+    --endpoint-url=http://localhost:4567 `
+    --region us-east-1
+
+==============================
+
+FOLDER: project4\project 4 code\coupons_import
+
+CREATE: index.js
+
+npm init -y
+
+npm install aws-sdk
+
+tar -a -c -f coupons_import.zip index.js node_modules
+
+aws lambda create-function `
+    --function-name coupons_import `
+    --runtime nodejs18.x `
+    --role arn:aws:iam::000000000000:role/lambda-ex `
+    --handler index.handler `
+    --zip-file fileb://coupons_import.zip `
+    --endpoint-url=http://localhost:4567 `
+    --region us-east-1
+
+==============================
+
+FOLDER: project4\project 4 code\coupons_import_presigned_url
+
+CREATE: index.js
+
+npm init -y
+
+npm install aws-sdk
+
+tar -a -c -f coupons_import_presigned_url.zip index.js node_modules
+
+aws lambda create-function `
+    --function-name coupons_import_presigned_url `
+    --runtime nodejs18.x `
+    --role arn:aws:iam::000000000000:role/lambda-ex `
+    --handler index.handler `
+    --zip-file fileb://coupons_import_presigned_url.zip `
+    --endpoint-url=http://localhost:4567 `
+    --region us-east-1
+
+==============================
+
+FOLDER: project4\project 4 code
+
+$apiId = "jt04umn17f"
+
+aws apigateway create-deployment `
+    --rest-api-id $apiId `
+    --stage-name dev `
+    --endpoint-url=http://localhost:4567 `
+    --region us-east-1
+
+==============================
+
+FOLDER: project4\project 4 code\coupons_import_presigned_url
+
+CREATE: coupon.json
+
+'{"coupon_id":"coupon-003","name":"Presigned URL Test Coupon","discount":25}' | Set-Content -Path .\coupon.json -Encoding ascii
+
+$response = Invoke-RestMethod `
+    -Uri "http://localhost:4567/restapis/jt04umn17f/dev/_user_request_/coupons/import_presigned_url" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body '{"file_name":"coupon.json"}'
+
+$uploadUrl = $response.url.Replace(":4566/", ":4567/")
+
+Invoke-RestMethod `
+    -Uri $uploadUrl `
+    -Method PUT `
+    -ContentType "application/json" `
+    -InFile ".\coupon.json"
+
+aws s3 ls s3://coupons/ `
+    --endpoint-url=http://localhost:4567 `
+    --region us-east-1
